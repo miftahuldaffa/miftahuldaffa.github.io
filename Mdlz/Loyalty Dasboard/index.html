@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loyalty Store Dashboard - Mondelez International</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #f0f2f5; font-family: system-ui, -apple-system, sans-serif; padding: 20px; min-height: 100vh; }
+        .header { text-align: center; margin-bottom: 24px; }
+        .header h1 { color: #1a1a2e; font-size: 22px; }
+        .header p { color: #666; font-size: 13px; margin-top: 4px; }
+        .data-source { margin-top: 8px; font-size: 11px; padding: 6px 12px; border-radius: 20px; display: inline-block; }
+        .data-source.live { background: #dcfce7; color: #15803d; }
+        .data-source.offline { background: #fef3c7; color: #92400e; }
+
+        /* SUMMARY CARDS */
+        .summary-section { max-width: 1200px; margin: 0 auto 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+        .summary-card { background: #fff; border-radius: 12px; padding: 16px 20px; border: 1px solid #e8e8e8; }
+        .summary-card .s-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+        .summary-card .s-value { font-size: 24px; font-weight: 800; font-family: monospace; margin-top: 4px; color: #1a1a2e; }
+        .summary-card .s-sub { font-size: 11px; color: #888; margin-top: 4px; }
+        .summary-card.achieved { border-left: 4px solid #22c55e; }
+        .summary-card.achieved .s-value { color: #15803d; }
+        .summary-card.not-achieved { border-left: 4px solid #ef4444; }
+        .summary-card.not-achieved .s-value { color: #dc2626; }
+        .summary-card.target-card { border-left: 4px solid #4f46e5; }
+        .summary-card.target-card .s-value { color: #4f46e5; }
+        .summary-card.pct-card { border-left: 4px solid #f59e0b; }
+        .summary-card.pct-card .s-value { color: #d97706; }
+
+        .search-section { max-width: 1200px; margin: 0 auto 20px; }
+        .search-row { display: flex; gap: 12px; flex-wrap: wrap; }
+        .search-box { flex: 1; min-width: 160px; position: relative; }
+        .search-box input, .search-box select { width: 100%; padding: 12px 16px 12px 40px; border: 1px solid #ddd; border-radius: 10px; font-size: 14px; background: #fff; transition: border-color 0.2s; appearance: none; -webkit-appearance: none; }
+        .search-box select { padding-left: 40px; cursor: pointer; }
+        .search-box input:focus, .search-box select:focus { outline: none; border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.1); }
+        .search-box label { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 16px; pointer-events: none; z-index: 1; }
+        .search-box .arrow { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 12px; color: #888; pointer-events: none; }
+        .search-info { font-size: 12px; color: #888; margin-top: 8px; }
+
+        .table-container { max-width: 1200px; margin: 0 auto; background: #fff; border-radius: 12px; border: 1px solid #e8e8e8; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        thead { background: #1a1a2e; color: #fff; }
+        th { padding: 12px 10px; text-align: left; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; }
+        td { padding: 10px; border-bottom: 1px solid #f0f0f0; color: #333; vertical-align: middle; }
+        tr:hover td { background: #f8f9ff; }
+        tr:last-child td { border-bottom: none; }
+
+        .badge-cluster { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 10px; text-transform: uppercase; }
+        .badge-cluster.gold { background: #fef3c7; color: #92400e; }
+        .badge-cluster.silver { background: #f1f5f9; color: #475569; }
+        .badge-cluster.bronze { background: #fed7aa; color: #9a3412; }
+        .badge-cluster.platinum { background: #ede9fe; color: #6b21a8; }
+        .badge-hari { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 10px; background: #e0e7ff; color: #3730a3; }
+
+        .pct-bar { display: flex; align-items: center; gap: 8px; }
+        .pct-bar-bg { width: 60px; height: 8px; background: #e8e8e8; border-radius: 4px; overflow: hidden; }
+        .pct-bar-fill { height: 100%; border-radius: 4px; }
+        .pct-bar-fill.high { background: #22c55e; }
+        .pct-bar-fill.mid { background: #f59e0b; }
+        .pct-bar-fill.low { background: #ef4444; }
+        .pct-text { font-weight: 700; font-size: 12px; }
+        .pct-text.high { color: #15803d; }
+        .pct-text.mid { color: #d97706; }
+        .pct-text.low { color: #dc2626; }
+
+        .btn-detail { background: #4f46e5; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 11px; cursor: pointer; font-weight: 600; }
+        .btn-detail:hover { background: #4338ca; }
+        .btn-rebate { background: #059669; color: #fff; border: none; padding: 4px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; text-decoration: none; display: inline-block; }
+        .btn-rebate:hover { background: #047857; }
+        .btn-skp { background: #2563eb; color: #fff; border: none; padding: 8px 16px; border-radius: 8px; font-size: 12px; cursor: pointer; text-decoration: none; display: inline-block; font-weight: 600; }
+        .btn-skp:hover { background: #1d4ed8; }
+
+        .no-data { text-align: center; padding: 40px; color: #888; }
+        .footer { text-align: center; margin-top: 24px; padding: 20px; color: #aaa; font-size: 11px; }
+
+        .detail-page { display: none; }
+        .detail-page.active { display: block; }
+        .detail-body { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); min-height: 100vh; padding: 24px; display: flex; flex-direction: column; align-items: center; }
+        .detail-header { text-align: center; margin-bottom: 24px; }
+        .detail-header .logo { font-size: 36px; }
+        .detail-header .name { color: #fff; font-size: 20px; font-weight: 700; margin-top: 8px; }
+        .detail-header .code { color: rgba(255,255,255,0.6); font-size: 12px; font-family: monospace; margin-top: 4px; background: rgba(255,255,255,0.1); display: inline-block; padding: 4px 14px; border-radius: 12px; }
+        .detail-card { background: #fff; border-radius: 16px; padding: 24px; width: 100%; max-width: 560px; margin-bottom: 16px; }
+        .detail-card .section-title { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; font-weight: 600; }
+        .detail-card .big-number { font-size: 44px; font-weight: 800; font-family: monospace; text-align: center; margin: 8px 0; }
+        .detail-card .metric-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+        .detail-card .metric-row:last-child { border-bottom: none; }
+        .detail-card .metric-row .label { color: #666; font-size: 13px; }
+        .detail-card .metric-row .value { color: #111; font-size: 13px; font-weight: 600; font-family: monospace; }
+        .back-btn { color: rgba(255,255,255,0.7); font-size: 13px; cursor: pointer; margin-bottom: 16px; text-decoration: none; display: inline-block; }
+        .back-btn:hover { color: #fff; }
+
+        .rebate-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+        .rebate-table th { background: #f8f9fa; padding: 8px; text-align: left; font-size: 11px; color: #666; border-bottom: 1px solid #eee; }
+        .rebate-table td { padding: 8px; border-bottom: 1px solid #f5f5f5; }
+        .rebate-table .total-row { background: #f0fdf4; font-weight: 700; }
+        .rebate-table .thr-row { background: #fffbeb; }
+        .tgl-cair { font-size: 11px; color: #059669; font-weight: 500; }
+        .quarter-header { background: #1a1a2e; color: #fff; font-weight: 700; font-size: 11px; text-transform: uppercase; }
+        .skp-section { display: flex; align-items: center; justify-content: space-between; padding-bottom: 16px; margin-bottom: 16px; border-bottom: 1px solid #eee; }
+    </style>
+</head>
+<body>
+
+<div id="main-page">
+    <div class="header">
+        <h1>Loyalty Store Dashboard</h1>
+        <p>Mondelez International - Loyalty Program 2026</p>
+        <div style="text-align:center;margin-top:8px;">
+            <span id="data-status" class="data-source offline">Memuat...</span>
+        </div>
+    </div>
+
+    <!-- SUMMARY CARDS -->
+    <div class="summary-section" id="summary-section">
+        <div class="summary-card achieved">
+            <div class="s-label">&#9989; Capai Target</div>
+            <div class="s-value" id="sum-achieved">-</div>
+            <div class="s-sub" id="sum-achieved-sub">toko</div>
+        </div>
+        <div class="summary-card not-achieved">
+            <div class="s-label">&#10060; Belum Capai</div>
+            <div class="s-value" id="sum-not-achieved">-</div>
+            <div class="s-sub" id="sum-not-achieved-sub">toko</div>
+        </div>
+        <div class="summary-card target-card">
+            <div class="s-label">&#127919; Total Target</div>
+            <div class="s-value" id="sum-target">-</div>
+            <div class="s-sub">seluruh toko</div>
+        </div>
+        <div class="summary-card pct-card">
+            <div class="s-label">&#128200; Total Pencapaian</div>
+            <div class="s-value" id="sum-pencapaian">-</div>
+            <div class="s-sub" id="sum-pct-overall">-</div>
+        </div>
+    </div>
+
+    <div class="search-section">
+        <div class="search-row">
+            <div class="search-box">
+                <label>&#128269;</label>
+                <input type="text" id="search-kode" placeholder="Cari Kode Toko..." oninput="filterData()">
+            </div>
+            <div class="search-box">
+                <label>&#127978;</label>
+                <input type="text" id="search-nama" placeholder="Cari Nama Toko..." oninput="filterData()">
+            </div>
+            <div class="search-box">
+                <label>&#128100;</label>
+                <input type="text" id="search-sls" placeholder="Cari Salesman..." oninput="filterData()">
+            </div>
+            <div class="search-box">
+                <label>&#128197;</label>
+                <select id="filter-hari" onchange="filterData()">
+                    <option value="">Semua Hari</option>
+                    <option value="SENIN">Senin</option>
+                    <option value="SELASA">Selasa</option>
+                    <option value="RABU">Rabu</option>
+                    <option value="KAMIS">Kamis</option>
+                    <option value="JUMAT">Jumat</option>
+                    <option value="SABTU">Sabtu</option>
+                </select>
+                <span class="arrow">&#9660;</span>
+            </div>
+            <div class="search-box">
+                <label>&#128205;</label>
+                <select id="filter-area" onchange="filterData()">
+                    <option value="">Semua Area</option>
+                </select>
+                <span class="arrow">&#9660;</span>
+            </div>
+        </div>
+        <div class="search-info" id="count-info"></div>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>No</th>
+                    <th>Kode Toko</th>
+                    <th>Nama Toko</th>
+                    <th>Salesman</th>
+                    <th>Hari</th>
+                    <th>Cluster</th>
+                    <th>Target</th>
+                    <th>Pencapaian</th>
+                    <th>%</th>
+                    <th>Aksi</th>
+                </tr>
+            </thead>
+            <tbody id="table-body">
+                <tr><td colspan="10" class="no-data">Memuat data...</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <p class="footer">Mondelez International - Loyalty Program 2026</p>
+</div>
+
+<div id="detail-page" class="detail-page"></div>
+
+<script>
+var SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTOHQ7sZpxS765uMrRmlXL-G7RLht8pF4JsHV4A4EdBmqhzOxnB9hB9sFq6nXODratLnOz7tlNmD74k/pub?output=csv';
+
+var allData = [];
+var currentData = [];
+
+function formatRupiah(num) {
+    if (!num || num === 0 || isNaN(num)) return 'Rp 0';
+    return 'Rp ' + Math.round(num).toLocaleString('id-ID');
+}
+
+function formatRupiahShort(num) {
+    if (!num || num === 0 || isNaN(num)) return 'Rp 0';
+    if (Math.abs(num) >= 1000000000) return 'Rp ' + (num / 1000000000).toFixed(1) + ' M';
+    if (Math.abs(num) >= 1000000) return 'Rp ' + (num / 1000000).toFixed(1) + ' Jt';
+    return 'Rp ' + Math.round(num).toLocaleString('id-ID');
+}
+
+function getPercentage(target, aktual) {
+    if (!target || target === 0) return 0;
+    return Math.round((aktual / target) * 100);
+}
+
+function getColorClass(pct) {
+    if (pct >= 100) return 'high';
+    if (pct >= 80) return 'mid';
+    return 'low';
+}
+
+function getClusterClass(cluster) {
+    if (!cluster) return '';
+    var c = cluster.toLowerCase();
+    if (c === 'gold') return 'gold';
+    if (c === 'silver') return 'silver';
+    if (c === 'bronze') return 'bronze';
+    if (c === 'platinum') return 'platinum';
+    return '';
+}
+
+function formatTanggal(val) {
+    if (!val || val === '-' || val === '0' || val === '') return '-';
+    var num = parseFloat(val);
+    if (!isNaN(num) && num > 10000) {
+        var date = new Date((num - 25569) * 86400 * 1000);
+        var day = ('0' + date.getDate()).slice(-2);
+        var month = ('0' + (date.getMonth() + 1)).slice(-2);
+        var year = date.getFullYear();
+        return day + '/' + month + '/' + year;
+    }
+    if (val.indexOf('-') !== -1 || val.indexOf('/') !== -1) {
+        var d = new Date(val);
+        if (!isNaN(d.getTime())) {
+            var day2 = ('0' + d.getDate()).slice(-2);
+            var month2 = ('0' + (d.getMonth() + 1)).slice(-2);
+            var year2 = d.getFullYear();
+            return day2 + '/' + month2 + '/' + year2;
+        }
+    }
+    return val;
+}
+
+function renderBukti(val) {
+    if (!val || val === '-' || val === '') return '-';
+    if (val.indexOf('http') !== -1 || val.indexOf('drive') !== -1) {
+        return '<a href="' + val + '" target="_blank" class="btn-rebate">Lihat</a>';
+    }
+    if (val.toUpperCase().indexOf('LIHAT') !== -1) {
+        return '<span class="btn-rebate" style="cursor:default;">' + val + '</span>';
+    }
+    return val;
+}
+
+function renderSKP(val) {
+    if (!val || val === '-' || val === '') return '<span style="color:#aaa;font-size:12px;">Belum tersedia</span>';
+    if (val.indexOf('http') !== -1 || val.indexOf('drive') !== -1) {
+        return '<a href="' + val + '" target="_blank" class="btn-skp">&#128196; Lihat SKP</a>';
+    }
+    if (val.toUpperCase().indexOf('LIHAT') !== -1) {
+        return '<span class="btn-skp" style="cursor:default;">&#128196; ' + val + '</span>';
+    }
+    return val;
+}
+
+// ===== POPULATE AREA DROPDOWN =====
+function populateAreaFilter(data) {
+    var areas = [];
+    for (var i = 0; i < data.length; i++) {
+        var area = data[i].area;
+        if (area && areas.indexOf(area) === -1) {
+            areas.push(area);
+        }
+    }
+    areas.sort();
+    var select = document.getElementById('filter-area');
+    select.innerHTML = '<option value="">Semua Area</option>';
+    for (var j = 0; j < areas.length; j++) {
+        var opt = document.createElement('option');
+        opt.value = areas[j];
+        opt.textContent = areas[j];
+        select.appendChild(opt);
+    }
+}
+
+// ===== UPDATE SUMMARY =====
+function updateSummary(data) {
+    var totalToko = data.length;
+    var achieved = 0;
+    var totalTarget = 0;
+    var totalPencapaian = 0;
+
+    for (var i = 0; i < data.length; i++) {
+        var s = data[i];
+        totalTarget += s.target;
+        totalPencapaian += s.pencapaian;
+        if (s.target > 0 && s.pencapaian >= s.target) {
+            achieved++;
+        }
+    }
+
+    var notAchieved = totalToko - achieved;
+    var overallPct = totalTarget > 0 ? Math.round((totalPencapaian / totalTarget) * 100) : 0;
+
+    document.getElementById('sum-achieved').textContent = achieved;
+    document.getElementById('sum-achieved-sub').textContent = 'dari ' + totalToko + ' toko';
+    document.getElementById('sum-not-achieved').textContent = notAchieved;
+    document.getElementById('sum-not-achieved-sub').textContent = 'dari ' + totalToko + ' toko';
+    document.getElementById('sum-target').textContent = formatRupiahShort(totalTarget);
+    document.getElementById('sum-pencapaian').textContent = formatRupiahShort(totalPencapaian);
+    document.getElementById('sum-pct-overall').textContent = overallPct + '% dari total target';
+}
+
+// ===== RENDER TABLE =====
+function renderTable(data) {
+    var tbody = document.getElementById('table-body');
+    if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" class="no-data">Tidak ada data ditemukan</td></tr>';
+        document.getElementById('count-info').textContent = '0 toko ditemukan';
+        updateSummary([]);
+        return;
+    }
+    var html = '';
+    for (var i = 0; i < data.length; i++) {
+        var s = data[i];
+        var pct = getPercentage(s.target, s.pencapaian);
+        var colorCls = getColorClass(pct);
+        var clusterCls = getClusterClass(s.cluster);
+        var barWidth = Math.min(pct, 100);
+        html += '<tr>';
+        html += '<td>' + (i + 1) + '</td>';
+        html += '<td style="font-family:monospace;font-size:11px;">' + s.kode + '</td>';
+        html += '<td><strong>' + s.nama + '</strong></td>';
+        html += '<td>' + s.namaSls + '</td>';
+        html += '<td><span class="badge-hari">' + (s.hari || '-') + '</span></td>';
+        html += '<td><span class="badge-cluster ' + clusterCls + '">' + (s.cluster || '-') + '</span></td>';
+        html += '<td style="font-family:monospace;">' + formatRupiah(s.target) + '</td>';
+        html += '<td style="font-family:monospace;">' + formatRupiah(s.pencapaian) + '</td>';
+        html += '<td><div class="pct-bar"><div class="pct-bar-bg"><div class="pct-bar-fill ' + colorCls + '" style="width:' + barWidth + '%"></div></div><span class="pct-text ' + colorCls + '">' + pct + '%</span></div></td>';
+        html += '<td><button class="btn-detail" onclick="showDetail(' + i + ')">Detail</button></td>';
+        html += '</tr>';
+    }
+    tbody.innerHTML = html;
+    document.getElementById('count-info').textContent = data.length + ' toko ditemukan';
+    updateSummary(data);
+}
+
+// ===== FILTER =====
+function filterData() {
+    var searchKode = document.getElementById('search-kode').value.toLowerCase();
+    var searchNama = document.getElementById('search-nama').value.toLowerCase();
+    var searchSls = document.getElementById('search-sls').value.toLowerCase();
+    var filterHari = document.getElementById('filter-hari').value.toUpperCase();
+    var filterArea = document.getElementById('filter-area').value;
+
+    var filtered = allData.filter(function(s) {
+        var matchKode = !searchKode || s.kode.toLowerCase().indexOf(searchKode) !== -1;
+        var matchNama = !searchNama || s.nama.toLowerCase().indexOf(searchNama) !== -1;
+        var matchSls = !searchSls || s.namaSls.toLowerCase().indexOf(searchSls) !== -1 || s.kodeSls.toLowerCase().indexOf(searchSls) !== -1;
+        var matchHari = !filterHari || s.hari.toUpperCase() === filterHari;
+        var matchArea = !filterArea || s.area === filterArea;
+        return matchKode && matchNama && matchSls && matchHari && matchArea;
+    });
+
+    currentData = filtered;
+    renderTable(filtered);
+}
+
+// ===== DETAIL PAGE =====
+function showDetail(index) {
+    var s = currentData[index];
+    if (!s) return;
+    var pct = getPercentage(s.target, s.pencapaian);
+    var colorCls = getColorClass(pct);
+    var nColor = pct >= 100 ? '#15803d' : pct >= 80 ? '#d97706' : '#dc2626';
+    var sBg = pct >= 100 ? '#dcfce7' : pct >= 80 ? '#fef3c7' : '#fee2e2';
+    var sTxt = pct >= 100 ? 'Target Tercapai!' : pct >= 80 ? 'Hampir Tercapai!' : 'Below Target';
+    var selisih = s.pencapaian - s.target;
+    var selisihColor = selisih >= 0 ? '#15803d' : '#dc2626';
+    var selisihPrefix = selisih >= 0 ? '+ ' : '- ';
+
+    var html = '<div class="detail-body">';
+    html += '<a class="back-btn" href="#" onclick="hideDetail();return false;">&#8592; Kembali ke Dashboard</a>';
+    html += '<div class="detail-header"><div class="logo">&#127978;</div>';
+    html += '<div class="name">' + s.nama + '</div>';
+    html += '<div class="code">ID: ' + s.kode + '</div></div>';
+
+    // Card 1: Pencapaian
+    html += '<div class="detail-card"><div class="section-title">Pencapaian Toko</div>';
+    html += '<div class="big-number" style="color:' + nColor + '">' + pct + '%</div>';
+    html += '<div class="pct-bar-bg" style="height:12px;margin-top:8px;width:100%;"><div class="pct-bar-fill ' + colorCls + '" style="width:' + Math.min(pct, 100) + '%;height:100%"></div></div>';
+    html += '<div style="text-align:center;margin-top:12px;padding:8px;border-radius:8px;font-size:13px;font-weight:600;background:' + sBg + ';color:' + nColor + '">' + sTxt + '</div></div>';
+
+    // Card 2: Detail Penjualan
+    html += '<div class="detail-card"><div class="section-title">Detail Penjualan</div>';
+    html += '<div class="metric-row"><span class="label">Target</span><span class="value">' + formatRupiah(s.target) + '</span></div>';
+    html += '<div class="metric-row"><span class="label">Pencapaian</span><span class="value">' + formatRupiah(s.pencapaian) + '</span></div>';
+    html += '<div class="metric-row"><span class="label">Selisih</span><span class="value" style="color:' + selisihColor + '">' + selisihPrefix + formatRupiah(Math.abs(selisih)) + '</span></div></div>';
+
+    // Card 3: Informasi Toko
+    html += '<div class="detail-card"><div class="section-title">Informasi Toko &amp; Salesman</div>';
+    html += '<div class="metric-row"><span class="label">Kode Toko</span><span class="value">' + s.kode + '</span></div>';
+    html += '<div class="metric-row"><span class="label">Nama Toko</span><span class="value">' + s.nama + '</span></div>';
+    html += '<div class="metric-row"><span class="label">Area</span><span class="value">' + (s.area || '-') + '</span></div>';
+    html += '<div class="metric-row"><span class="label">Hari Kunjungan</span><span class="value">' + (s.hari || '-') + '</span></div>';
+    html += '<div class="metric-row"><span class="label">Cluster</span><span class="value">' + (s.cluster || '-') + '</span></div>';
+    html += '<div class="metric-row"><span class="label">Kode Salesman</span><span class="value">' + s.kodeSls + '</span></div>';
+    html += '<div class="metric-row"><span class="label">Nama Salesman</span><span class="value">' + s.namaSls + '</span></div>';
+    html += '<div class="metric-row"><span class="label">Nama Rekening</span><span class="value">' + (s.namaRek || '-') + '</span></div>';
+    html += '<div class="metric-row"><span class="label">No HP</span><span class="value">' + (s.noHp || '-') + '</span></div>';
+    html += '<div class="metric-row"><span class="label">No Rekening</span><span class="value">' + (s.noRek || '-') + '</span></div>';
+    html += '<div class="metric-row"><span class="label">Bank</span><span class="value">' + (s.bank || '-') + '</span></div></div>';
+
+    // Card 4: SKP (di atas) + Rebate 2026 (di bawah) - SATU KOTAK
+    html += '<div class="detail-card">';
+
+    // SKP di atas
+    html += '<div class="skp-section">';
+    html += '<div><div style="font-size:13px;color:#333;font-weight:600;">SKP (Surat Kerjasama)</div><div style="font-size:11px;color:#888;margin-top:2px;">Dokumen perjanjian kerjasama toko</div></div>';
+    html += '<div>' + renderSKP(s.skp) + '</div>';
+    html += '</div>';
+
+    // Rebate di bawah SKP
+    html += '<div class="section-title">Rebate 2026</div>';
+    html += '<table class="rebate-table">';
+
+    // Q1
+    html += '<tr class="quarter-header"><td colspan="2" style="padding:10px 8px;color:#fff;">Q1 2026</td></tr>';
+    html += '<tr><td>Rebate M01 (Jan)</td><td style="text-align:right;font-family:monospace;">' + formatRupiah(s.rebateM01) + '</td></tr>';
+    html += '<tr><td>Rebate M02 (Feb)</td><td style="text-align:right;font-family:monospace;">' + formatRupiah(s.rebateM02) + '</td></tr>';
+    html += '<tr><td>Rebate M03 (Mar)</td><td style="text-align:right;font-family:monospace;">' + formatRupiah(s.rebateM03) + '</td></tr>';
+    html += '<tr class="thr-row"><td>THR M03</td><td style="text-align:right;font-family:monospace;">' + formatRupiah(s.rebateTHR) + '</td></tr>';
+    html += '<tr class="total-row"><td>TOTAL Q1</td><td style="text-align:right;font-family:monospace;">' + formatRupiah(s.totalQ1) + '</td></tr>';
+    html += '<tr><td>Tanggal Cair</td><td style="text-align:right;" class="tgl-cair">' + formatTanggal(s.tglCairQ1) + '</td></tr>';
+    html += '<tr><td>Bukti TF</td><td style="text-align:right;">' + renderBukti(s.buktiQ1) + '</td></tr>';
+    html += '<tr><td>Bukti THR</td><td style="text-align:right;">' + renderBukti(s.buktiTHRQ1) + '</td></tr>';
+
+    // Q2
+    html += '<tr class="quarter-header"><td colspan="2" style="padding:10px 8px;color:#fff;">Q2 2026</td></tr>';
+    html += '<tr><td>Rebate M04 (Apr)</td><td style="text-align:right;font-family:monospace;">' + formatRupiah(s.rebateM04) + '</td></tr>';
+    html += '<tr><td>Rebate M05 (Mei)</td><td style="text-align:right;font-family:monospace;">' + formatRupiah(s.rebateM05) + '</td></tr>';
+    html += '<tr><td>Rebate M06 (Jun)</td><td style="text-align:right;font-family:monospace;">' + formatRupiah(s.rebateM06) + '</td></tr>';
+    html += '<tr class="total-row"><td>TOTAL Q2</td><td style="text-align:right;font-family:monospace;">' + formatRupiah(s.totalQ2) + '</td></tr>';
+    html += '<tr><td>Tanggal Cair</td><td style="text-align:right;" class="tgl-cair">' + formatTanggal(s.tglCairQ2) + '</td></tr>';
+    html += '<tr><td>Bukti TF</td><td style="text-align:right;">' + renderBukti(s.buktiQ2) + '</td></tr>';
+
+    // Q3
+    html += '<tr class="quarter-header"><td colspan="2" style="padding:10px 8px;color:#fff;">Q3 2026</td></tr>';
+    html += '<tr><td>Rebate M07 (Jul)</td><td style="text-align:right;font-family:monospace;">' + formatRupiah(s.rebateM07) + '</td></tr>';
+    html += '<tr><td>Rebate M08 (Agu)</td><td style="text-align:right;font-family:monospace;">' + formatRupiah(s.rebateM08) + '</td></tr>';
+    html += '<tr><td>Rebate M09 (Sep)</td><td style="text-align:right;font-family:monospace;">' + formatRupiah(s.rebateM09) + '</td></tr>';
+    html += '<tr class="total-row"><td>TOTAL Q3</td><td style="text-align:right;font-family:monospace;">' + formatRupiah(s.totalQ3) + '</td></tr>';
+    html += '<tr><td>Tanggal Cair</td><td style="text-align:right;" class="tgl-cair">' + formatTanggal(s.tglCairQ3) + '</td></tr>';
+    html += '<tr><td>Bukti TF</td><td style="text-align:right;">' + renderBukti(s.buktiQ3) + '</td></tr>';
+
+    // Q4
+    html += '<tr class="quarter-header"><td colspan="2" style="padding:10px 8px;color:#fff;">Q4 2026</td></tr>';
+    html += '<tr><td>Rebate M10 (Okt)</td><td style="text-align:right;font-family:monospace;">' + formatRupiah(s.rebateM10) + '</td></tr>';
+    html += '<tr><td>Rebate M11 (Nov)</td><td style="text-align:right;font-family:monospace;">' + formatRupiah(s.rebateM11) + '</td></tr>';
+    html += '<tr><td>Rebate M12 (Des)</td><td style="text-align:right;font-family:monospace;">' + formatRupiah(s.rebateM12) + '</td></tr>';
+    html += '<tr class="total-row"><td>TOTAL Q4</td><td style="text-align:right;font-family:monospace;">' + formatRupiah(s.totalQ4) + '</td></tr>';
+    html += '<tr><td>Tanggal Cair</td><td style="text-align:right;" class="tgl-cair">' + formatTanggal(s.tglCairQ4) + '</td></tr>';
+    html += '<tr><td>Bukti TF</td><td style="text-align:right;">' + renderBukti(s.buktiQ4) + '</td></tr>';
+
+    html += '</table>';
+    html += '</div>'; // end card 4
+
+    html += '</div>'; // end detail-body
+
+    document.getElementById('detail-page').className = 'detail-page active';
+    document.getElementById('detail-page').innerHTML = html;
+    document.getElementById('main-page').style.display = 'none';
+}
+
+function hideDetail() {
+    document.getElementById('detail-page').className = 'detail-page';
+    document.getElementById('detail-page').innerHTML = '';
+    document.getElementById('main-page').style.display = '';
+}
+
+// ===== PARSE CSV (40 kolom - AREA ditambahkan di kolom C) =====
+// 0: KODE TOKO, 1: NAMA TOKO, 2: AREA, 3: KODE SLS, 4: NAMA SLS, 5: HARI, 6: CLUSTER,
+// 7: TARGET, 8: PENCAPAIAN, 9: Nama Rekening, 10: No HP, 11: Nomor Rekening, 12: Nama Bank,
+// 13: SKP, 14: TOTAL Q1, 15: M01, 16: M02, 17: M03, 18: THR M03,
+// 19: Tgl Cair Q1, 20: Bukti TF Q1, 21: Bukti THR Q1,
+// 22: TOTAL Q2, 23: M04, 24: M05, 25: M06, 26: Tgl Cair Q2, 27: Bukti TF Q2,
+// 28: TOTAL Q3, 29: M07, 30: M08, 31: M09, 32: Tgl Cair Q3, 33: Bukti TF Q3,
+// 34: TOTAL Q4, 35: M10, 36: M11, 37: M12, 38: Tgl Cair Q4, 39: Bukti TF Q4
+
+function parseCSV(csvText) {
+    var data = [];
+    var lines = csvText.split(String.fromCharCode(10));
+
+    for (var i = 1; i < lines.length; i++) {
+        var line = lines[i].replace(String.fromCharCode(13), '').trim();
+        if (line === '') continue;
+
+        var values = [];
+        var cur = '';
+        var inQ = false;
+        for (var j = 0; j < line.length; j++) {
+            var c = line.charAt(j);
+            if (c === '"') { inQ = !inQ; }
+            else if (c === ',' && !inQ) { values.push(cur.trim()); cur = ''; }
+            else { cur += c; }
+        }
+        values.push(cur.trim());
+
+        if (values.length >= 8) {
+            var kode = values[0].replace(/"/g, '').trim();
+            if (kode === '' || kode.indexOf('KODE') !== -1) continue;
+
+            var pNum = function(v) { return parseFloat((v || '').replace(/[^0-9.-]/g, '')) || 0; };
+            var pStr = function(v) { return v ? v.replace(/"/g, '').trim() : ''; };
+
+            data.push({
+                kode: kode,
+                nama: pStr(values[1]),
+                area: pStr(values[2]),
+                kodeSls: pStr(values[3]),
+                namaSls: pStr(values[4]),
+                hari: pStr(values[5]),
+                cluster: pStr(values[6]),
+                target: pNum(values[7]),
+                pencapaian: pNum(values[8]),
+                namaRek: pStr(values[9]),
+                noHp: pStr(values[10]),
+                noRek: pStr(values[11]),
+                bank: pStr(values[12]),
+                skp: pStr(values[13]),
+                totalQ1: pNum(values[14]),
+                rebateM01: pNum(values[15]),
+                rebateM02: pNum(values[16]),
+                rebateM03: pNum(values[17]),
+                rebateTHR: pNum(values[18]),
+                tglCairQ1: pStr(values[19]),
+                buktiQ1: pStr(values[20]),
+                buktiTHRQ1: pStr(values[21]),
+                totalQ2: pNum(values[22]),
+                rebateM04: pNum(values[23]),
+                rebateM05: pNum(values[24]),
+                rebateM06: pNum(values[25]),
+                tglCairQ2: pStr(values[26]),
+                buktiQ2: pStr(values[27]),
+                totalQ3: pNum(values[28]),
+                rebateM07: pNum(values[29]),
+                rebateM08: pNum(values[30]),
+                rebateM09: pNum(values[31]),
+                tglCairQ3: pStr(values[32]),
+                buktiQ3: pStr(values[33]),
+                totalQ4: pNum(values[34]),
+                rebateM10: pNum(values[35]),
+                rebateM11: pNum(values[36]),
+                rebateM12: pNum(values[37]),
+                tglCairQ4: pStr(values[38]),
+                buktiQ4: pStr(values[39])
+            });
+        }
+    }
+    return data;
+}
+
+function loadData() {
+    var urlParams = new URLSearchParams(window.location.search);
+    var storeId = urlParams.get('store');
+
+    fetch(SHEET_CSV_URL)
+        .then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.text();
+        })
+        .then(function(csv) {
+            var data = parseCSV(csv);
+            if (data.length > 0) {
+                allData = data;
+                currentData = data;
+                document.getElementById('data-status').className = 'data-source live';
+                document.getElementById('data-status').textContent = 'Live - Google Sheets (' + data.length + ' toko)';
+                populateAreaFilter(data);
+                if (storeId) {
+                    for (var i = 0; i < data.length; i++) {
+                        if (data[i].kode === decodeURIComponent(storeId)) {
+                            showDetail(i);
+                            return;
+                        }
+                    }
+                }
+                renderTable(data);
+            } else {
+                throw new Error('No data parsed');
+            }
+        })
+        .catch(function(e) {
+            console.error('Error:', e);
+            document.getElementById('data-status').className = 'data-source offline';
+            document.getElementById('data-status').textContent = 'Offline - Gagal memuat data';
+            document.getElementById('table-body').innerHTML = '<tr><td colspan="10" class="no-data">Gagal memuat data. Pastikan Google Sheets sudah di-publish.</td></tr>';
+        });
+}
+
+loadData();
+setInterval(loadData, 300000);
+</script>
+
+</body>
+</html>
